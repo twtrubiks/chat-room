@@ -25,7 +25,7 @@ $(document).ready(function() {
             onError: function(errormessage) {
                  console.log("onError errormessage :" + errormessage)
             }
-        }
+        };
     var cropperHeader  = new Croppic('imgID', cropperOptions);
 
 });

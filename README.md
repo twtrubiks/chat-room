@@ -5,7 +5,11 @@ Chat-Room Use Python Socket.IO
 * [線上 Demo](http://chatflask.herokuapp.com/)  
 
 P.S
-目前佈署在 [heroku](https://dashboard.heroku.com/) 上，因為免費版有24小時一定要休息6小時的規定，所以 Demo 的如果死掉了請稍後再嘗試。
+目前佈署在 [heroku](https://dashboard.heroku.com/) 上，因為免費版有24小時一定要休息6小時的規定，所以比較慢請多多包涵。
+
+Heroku 上 database 是使用 Heroku Postgres，本地端測試可以直接使用SQLITE，
+
+如果 server (demo) 自動重啟，圖片可以會遺失。
  
 聊天室，相信大家一定經常看到，今天教你使用 [python-socketio](https://github.com/miguelgrinberg/python-socketio) 打造一個簡易的聊天室。
 

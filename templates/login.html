@@ -1,12 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Chat Room - Login</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css">
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Chat Room - Login{% endblock %}
+
+{% block body %}
 <div class="container">
     <div class="p-5 mb-4 mt-4 bg-body-tertiary rounded-3">
         <div class="container-fluid py-3">
@@ -30,17 +26,8 @@
         <button type="button" onclick="location.replace('/register')" class="btn btn-link">Register</button>
     </form>
 </div>
-<script>
-    (function () {
-        const form = document.querySelector('form.needs-validation');
-        form.addEventListener('submit', (e) => {
-            if (!form.checkValidity()) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            form.classList.add('was-validated');
-        });
-    })();
-</script>
-</body>
-</html>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='javascripts/login.js') }}"></script>
+{% endblock %}

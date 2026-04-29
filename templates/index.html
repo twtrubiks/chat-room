@@ -1,67 +1,66 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
-  <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Chat Room</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/mystyle.css') }}">
-  </head>
+{% extends "base.html" %}
 
-  <body>
-    <div class="chat">
-      <div class="chat-title">
+{% block title %}Chat Room{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Open+Sans">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/mystyle.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="chat">
+    <div class="chat-title">
         <h1>{{ current_user.id }}</h1>
         <figure class="avatar">
-          <img src="static/mugshot/{{ mug_shot_title }}" />
+            <img src="static/mugshot/{{ mug_shot_title }}" />
         </figure>
         <i class="fa-solid fa-gear" aria-hidden="true" data-bs-toggle="modal" data-bs-target="#CroppicModal"></i>
-      </div>
+    </div>
 
-      <div class="messages">
+    <div class="messages">
         <div class="messages-content">
-          {% for data in messages_list %}
-            <div class="message new">
-              <figure class="avatar"><img src="static/mugshot/{{ data.MugShot }}" alt="{{ data.UserName }}" title="{{ data.UserName }}"></figure>
-              {{ data.Messages }}
-              <div class="timestamp">{{ data.CreateDate }}</div>
-            </div>
-          {% endfor %}
+            {% for data in messages_list %}
+                <div class="message new">
+                    <figure class="avatar"><img src="static/mugshot/{{ data.MugShot }}" alt="{{ data.UserName }}" title="{{ data.UserName }}"></figure>
+                    {{ data.Messages }}
+                    <div class="timestamp">{{ data.CreateDate }}</div>
+                </div>
+            {% endfor %}
         </div>
-      </div>
+    </div>
 
-      <div class="message-box">
+    <div class="message-box">
         <textarea class="message-input" placeholder="Type message..."></textarea>
         <button type="button" class="message-submit">Send</button>
-      </div>
     </div>
-    <div class="bg"></div>
+</div>
+<div class="bg"></div>
 
-    <div class="modal fade" id="CroppicModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog">
+<div class="modal fade" id="CroppicModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
         <div class="modal-content">
-          <div class="modal-header">
-            <h4 class="modal-title">上傳大頭照</h4>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body">
-            <input type="file" id="cropInput" accept="image/*" class="form-control mb-3">
-            <div style="max-height: 400px; overflow: hidden;">
-              <img id="cropImage" style="display:block; max-width: 100%;">
+            <div class="modal-header">
+                <h4 class="modal-title">上傳大頭照</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <button type="button" id="cropConfirm" class="btn btn-primary mt-3" disabled>確認上傳</button>
-          </div>
+            <div class="modal-body">
+                <input type="file" id="cropInput" accept="image/*" class="form-control mb-3">
+                <div style="max-height: 400px; overflow: hidden;">
+                    <img id="cropImage" style="display:block; max-width: 100%;">
+                </div>
+                <button type="button" id="cropConfirm" class="btn btn-primary mt-3" disabled>確認上傳</button>
+            </div>
         </div>
-      </div>
     </div>
+</div>
+{% endblock %}
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/cropperjs@2.1.1/dist/cropper.min.js"></script>
-    <script src="{{ url_for('static', filename='javascripts/index.js') }}"></script>
-    <script src="{{ url_for('static', filename='javascripts/picture.js') }}"></script>
-  </body>
-</html>
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cropperjs@2.1.1/dist/cropper.min.js"></script>
+<script src="{{ url_for('static', filename='javascripts/index.js') }}"></script>
+<script src="{{ url_for('static', filename='javascripts/picture.js') }}"></script>
+{% endblock %}

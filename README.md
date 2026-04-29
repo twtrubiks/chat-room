@@ -3,23 +3,17 @@
 Chat-Room Use Python Socket.IO
 
 * [Youtube Demo](https://youtu.be/l53-K03hIXs)
-* [線上 Demo](http://chatflask.herokuapp.com/)
 
-P.S
-目前佈署在 [heroku](https://dashboard.heroku.com/) 上，因為免費版有24小時一定要休息6小時的規定，所以比較慢請多多包涵。
+聊天室,相信大家一定經常看到,今天教你使用 [python-socketio](https://github.com/miguelgrinberg/python-socketio) 打造一個簡易的聊天室。
 
-Heroku 上 database 是使用 Heroku Postgres，本地端測試可以直接使用SQLITE，
-
-如果 server (demo) 自動重啟，圖片可以會遺失。
-
-聊天室，相信大家一定經常看到，今天教你使用 [python-socketio](https://github.com/miguelgrinberg/python-socketio) 打造一個簡易的聊天室。
-
-使用 Python [Flask](http://flask.pocoo.org/) 搭配 [python-socketio](https://github.com/miguelgrinberg/python-socketio) 建立聊天室
+使用 Python [Flask](https://flask.palletsprojects.com/) 搭配 [python-socketio](https://github.com/miguelgrinberg/python-socketio) 建立聊天室,資料庫使用 SQLite。
 
 ## 特色
 
-* [python-socketio](https://github.com/miguelgrinberg/python-socketio) 即時聊天室。
-* 透過 [flask-login](https://github.com/maxcountryman/flask-login) 實現簡易登入、註冊。
+* [Flask-SocketIO](https://flask-socketio.readthedocs.io/) 即時聊天室
+* 透過 [Flask-Login](https://flask-login.readthedocs.io/) 實現簡易登入、註冊
+* 使用 [Cropper.js](https://github.com/fengyuanchen/cropperjs/) 上傳並裁切大頭照
+* 前端 [Bootstrap 5](https://getbootstrap.com/) + [Font Awesome 6](https://fontawesome.com/),聊天頁無 jQuery 依賴
 
 ## 安裝套件
 
@@ -39,6 +33,14 @@ pip install -r requirements.txt
 export FLASK_APP=app.py
 flask db upgrade
 ```
+
+## 啟動
+
+```cmd
+python app.py
+```
+
+預設會在 `http://localhost:5000` 啟動，使用 Flask-SocketIO 內建的開發伺服器。
 
 ## 執行畫面
 
@@ -61,30 +63,28 @@ flask db upgrade
 
 ## Deploy
 
-佈署空間 - [heroku](https://dashboard.heroku.com/)
+請參考 [flask-socketio gunicorn-web-server](https://flask-socketio.readthedocs.io/en/latest/deployment.html)
 
-請參考 [flask-socketio gunicorn-web-server](https://flask-socketio.readthedocs.io/en/latest/#gunicorn-web-server)
-
-建立一個名稱為 **Procfile** 的檔案
-
-在檔案內輸入
+專案內附 **Procfile** 範例:
 
 ```cmd
 web: gunicorn --threads 8 -w 1 app:app
 ```
 
-heroku Deployment method : Heroku-Git , GitHub , Dropbox
+`-w 1` 是 Flask-SocketIO 的硬性要求;若需要多 worker 必須搭配 Redis 訊息隊列。
 
 ## 執行環境
 
 * Python 3.13.13
+* Flask 3.1 / Flask-SocketIO 5.6 / SQLAlchemy 2.0 / Pillow 12
 
 ## Reference
 
+* [Flask-SocketIO](https://flask-socketio.readthedocs.io/)
 * [python-socketio](https://github.com/miguelgrinberg/python-socketio)
-* [flask-login](https://github.com/maxcountryman/flask-login)
-* [pillow](https://pillow.readthedocs.io/en/4.0.x/)
-* [croppic](http://www.croppic.net/)
+* [Flask-Login](https://flask-login.readthedocs.io/)
+* [Pillow](https://pillow.readthedocs.io/)
+* [Bootstrap 5](https://getbootstrap.com/)
 * [聊天室版型](http://www.bypeople.com/minimal-css-chat-ui/)
 
 ## License

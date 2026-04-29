@@ -1,70 +1,79 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <title>Example</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/bootstrap.min.css') }}" type="text/css"/>
-    <link rel="stylesheet" href="{{ url_for('static', filename='plugins/jquery.validate/jquery.validate.css') }}"
-          type="text/css"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Chat Room - Register</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.8/css/bootstrap.min.css">
 </head>
 <body>
-
 <div class="container">
-    <div class="jumbotron">
-        <h1>Register</h1>
-        <p>Example Use Flask</p>
+    <div class="p-5 mb-4 mt-4 bg-body-tertiary rounded-3">
+        <div class="container-fluid py-3">
+            <h1 class="display-5 fw-bold">Register</h1>
+            <p>Example Use Flask</p>
+        </div>
     </div>
-    <form action={{ url_for("register") }} method="POST">
+    <form action="{{ url_for('register') }}" method="POST" class="needs-validation" novalidate>
         <p>{{ error }}</p>
-        <div class="form-group">
-            <label for="InputUser">User Name</label>
-            <input type="text" class="form-control" name="username" id="username" placeholder="username">
+        <div class="mb-3">
+            <label for="username" class="form-label">User Name</label>
+            <input type="text" class="form-control" name="username" id="username" placeholder="username" required>
+            <div class="invalid-feedback" id="usernameFeedback">Please enter a username.</div>
         </div>
-        <div class="form-group">
-            <label for="InputPassword">Password</label>
-            <input type="password" class="form-control" name="password" id="password" placeholder="password">
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <input type="password" class="form-control" name="password" id="password" placeholder="password" required>
+            <div class="invalid-feedback">Please enter a password.</div>
         </div>
-        <button type="submit" class="btn btn-default">Register</button>
+        <button type="submit" class="btn btn-primary">Register</button>
         <button type="button" onclick="location.replace('/login')" class="btn btn-link">LOGIN</button>
     </form>
-
 </div>
-<script src='{{ url_for('static', filename='javascripts/jquery.min.js') }}'></script>
-<script src='{{ url_for('static', filename='javascripts/bootstrap.min.js') }}'></script>
-<script src='{{ url_for('static', filename='plugins/jquery.validate/jquery.validate.min.js') }}'></script>
 <script>
-    $("form").validate({
-        rules: {
-            username: {
-                required: true,
-                UserNameExist: true
-            },
-            password: {
-                required: true
+    (function () {
+        const form = document.querySelector('form.needs-validation');
+        const username = document.getElementById('username');
+        const feedback = document.getElementById('usernameFeedback');
+        let lastChecked = null;
+
+        async function checkUsername() {
+            const value = username.value.trim();
+            if (!value) return;
+            if (value === lastChecked) return;
+            lastChecked = value;
+            try {
+                const fd = new FormData();
+                fd.append('username', value);
+                const resp = await fetch('/API_check_UserNameExist', { method: 'POST', body: fd });
+                const ok = await resp.json();
+                if (ok) {
+                    username.setCustomValidity('');
+                } else {
+                    username.setCustomValidity('exists');
+                    feedback.textContent = 'UserName already exists.';
+                }
+            } catch (err) {
+                username.setCustomValidity('');
             }
         }
-    });
-    $.validator.addMethod('UserNameExist', function (value, element) {
-        var obj = {
-            username: $('#username').val().replace(/\s/g, "")
-        };
-        var data_json = JSON.stringify(obj);
-        var isSuccess = true;
-        $.ajax({
-            url: "/API_check_UserNameExist",
-            type: "POST",
-            data: data_json,
-            dataType: "json",
-            async: false,
-            contentType: "application/json",
-            success: function (data, textStatus, jqXHR) {
-                if (data == "exist") {
-                    isSuccess = false;
-                }
+
+        username.addEventListener('blur', checkUsername);
+        username.addEventListener('input', () => {
+            username.setCustomValidity('');
+            feedback.textContent = 'Please enter a username.';
+            lastChecked = null;
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await checkUsername();
+            form.classList.add('was-validated');
+            if (form.checkValidity()) {
+                form.submit();
             }
         });
-        return isSuccess;
-    }, "UserName already exists.");
+    })();
 </script>
 </body>
 </html>

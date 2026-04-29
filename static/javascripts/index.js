@@ -1,64 +1,52 @@
-$(function () {
-    var $messages = $('.messages-content');
+(function () {
+    const messages = document.querySelector('.messages-content');
+    const messageInput = document.querySelector('.message-input');
+    const messageSubmit = document.querySelector('.message-submit');
 
-    $(window).load(function () {
-        $messages.mCustomScrollbar();
+    const socket = io();
+
+    socket.on('connect', () => {
+        socket.emit('join', { room: 'A_Room' });
     });
 
-
-    var namespace = '';
-    var socket = io.connect(location.protocol + '//' + document.domain + ':' + location.port + namespace);
-
-    socket.on('connect', function () {
-        //console.log('connected!');
-        socket.emit('join', {room: 'A_Room'});
-    });
-
-    function updateScrollbar() {
-        $messages.mCustomScrollbar("update").mCustomScrollbar('scrollTo', 'bottom', {
-            scrollInertia: 10,
-            timeout: 0
-        });
+    function scrollToBottom() {
+        messages.scrollTop = messages.scrollHeight;
     }
 
-    function setDate(time) {
-        $('<div class="timestamp">' + time + '</div>').appendTo($('.message:last'));
+    function escapeHTML(s) {
+        const div = document.createElement('div');
+        div.textContent = s == null ? '' : String(s);
+        return div.innerHTML;
+    }
+
+    function appendMessage(data) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message new';
+        wrapper.innerHTML =
+            '<figure class="avatar"><img src="/static/mugshot/' + escapeHTML(data.PictureUrl) + '"></figure>' +
+            escapeHTML(data.msg) +
+            '<div class="timestamp">' + escapeHTML(data.time) + '</div>';
+        messages.appendChild(wrapper);
+        scrollToBottom();
     }
 
     function insertMessage() {
-        //console.log('insertMessage');
-        var msg = $('.message-input').val();
-        if ($.trim(msg) == '') {
-            return false;
-        }
-        //console.log('send Inqueiry');
-        var obj = {
-            msg: msg,
-            room: 'A_Room'
-        };
-        socket.emit('sendInquiry', obj);
+        const msg = (messageInput.value || '').trim();
+        if (!msg) return;
+        socket.emit('sendInquiry', { msg: msg, room: 'A_Room' });
+        messageInput.value = '';
     }
 
+    socket.on('getInquiry', appendMessage);
 
-    socket.on('getInquiry', function (msg) {
-        //console.log(msg.msg);
-        $('<div class="message new"><figure class="avatar"><img src="/static/mugshot/' + msg.PictureUrl + '" /></figure>' + msg.msg + '</div>').appendTo($('.mCSB_container')).addClass('new');
-        setDate(msg.time);
-        $('.message-input').val(null);
-        updateScrollbar();
-    });
+    messageSubmit.addEventListener('click', insertMessage);
 
-
-    $('.message-submit').click(function () {
-        insertMessage();
-    });
-
-    $(window).on('keydown', function (e) {
-        if (e.which == 13) {
+    messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
             insertMessage();
-            return false;
         }
     });
 
-
-});
+    window.addEventListener('load', scrollToBottom);
+})();

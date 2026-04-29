@@ -321,23 +321,6 @@ Message Box
 }
 
 /*--------------------
-Custom Srollbar
---------------------*/
-.mCSB_scrollTools {
-  margin: 1px -3px 1px 0;
-  opacity: 0;
-}
-
-.mCSB_inside > .mCSB_container {
-  margin-right: 0px;
-  padding: 0 10px;
-}
-
-.mCSB_scrollTools .mCSB_dragger .mCSB_dragger_bar {
-  background-color: rgba(0, 0, 0, 0.5) !important;
-}
-
-/*--------------------
 Bounce
 --------------------*/
 @-webkit-keyframes bounce {

@@ -1,18 +1,7 @@
-from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_script import Manager
-from flask_migrate import Migrate, MigrateCommand
 from datetime import datetime
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:xxxxx@localhost/db'
-
-db = SQLAlchemy(app)
-migrate = Migrate(app, db)
-
-manager = Manager(app)
-manager.add_command('db', MigrateCommand)
+db = SQLAlchemy()
 
 
 class UserAccounts(db.Model):
@@ -29,13 +18,14 @@ class UserAccounts(db.Model):
                  user_name,
                  password,
                  mugshot,
-                 create_date=datetime.now(),
-                 modified_date=datetime.now()):
+                 create_date=None,
+                 modified_date=None):
+        now = datetime.now()
         self.UserName = user_name
         self.Password = self.psw_to_md5(password)
         self.MugShot = mugshot
-        self.CreateDate = create_date
-        self.ModifiedDate = modified_date
+        self.CreateDate = create_date if create_date is not None else now
+        self.ModifiedDate = modified_date if modified_date is not None else now
 
     @staticmethod
     def psw_to_md5(str_psw):
@@ -62,7 +52,3 @@ class Message(db.Model):
         self.UserName = user_name
         self.Messages = messages
         self.CreateDate = create_date
-
-
-if __name__ == '__main__':
-    manager.run()

@@ -1,6 +1,7 @@
-from flask import Flask, session, redirect, render_template, request, flash, url_for, json
+from flask import Flask, redirect, render_template, request, flash, url_for, json
 from flask_socketio import SocketIO, emit, join_room
 from flask_login import UserMixin, LoginManager, login_required, current_user, login_user, logout_user
+from flask_migrate import Migrate
 from dbModel import UserAccounts, Message, db
 from functools import wraps
 from PIL import Image
@@ -16,6 +17,10 @@ MugShot_FOLDER = os.path.join(APP_ROOT, MugShot_PATH)
 
 app = Flask(__name__)
 app.secret_key = 'super secret string'  # Change this!
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:xxxxx@localhost/db'
+db.init_app(app)
+migrate = Migrate(app, db, render_as_batch=True)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.session_protection = "strong"
@@ -23,8 +28,7 @@ login_manager.login_view = "login"
 login_manager.login_message = "Please LOG IN"
 login_manager.login_message_category = "info"
 
-socketio = SocketIO(app)
-async_mode = "eventlet"
+socketio = SocketIO(app, async_mode='threading')
 
 
 class User(UserMixin):
@@ -60,7 +64,7 @@ def user_loader(username):
 @app.route('/index', methods=['GET'])
 @login_required
 def index():
-    user_id = session.get('user_id')
+    user_id = current_user.id
 
     message_data = db.session.query(
         Message,
@@ -86,13 +90,11 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    user_id = session.get('user_id')
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
 
     if request.method == 'GET':
         return render_template("login.html")
-
-    if current_user.is_authenticated and query_user(user_id):
-        return redirect(url_for('index'))
 
     username = request.form['username']
     user = UserAccounts.query.filter_by(UserName=username).first()
@@ -152,7 +154,9 @@ def test_connect():
 
 @socketio.on('sendInquiry')
 def send_inquiry(msg):
-    user_id = session.get('user_id')
+    if not current_user.is_authenticated:
+        return
+    user_id = current_user.id
     create_date = datetime.now()
 
     data_message = Message(
@@ -173,8 +177,9 @@ def send_inquiry(msg):
 
 
 @app.route('/croppic', methods=['GET', 'POST'])
+@login_required
 def croppic():
-    user_id = session.get('user_id')
+    user_id = current_user.id
     try:
         # imgUrl 		// your image path (the one we recieved after successfull upload)
         img_url = request.form['imgUrl']
@@ -213,14 +218,14 @@ def croppic():
         source_image = Image.open(io.BytesIO(img_data))
         image_format = source_image.format.lower()
         # create new crop image
-        source_image = source_image.resize((img_w, img_h), Image.ANTIALIAS)
+        source_image = source_image.resize((img_w, img_h), Image.Resampling.LANCZOS)
 
-        rotated_image = source_image.rotate(-float(angle), Image.BICUBIC)
+        rotated_image = source_image.rotate(-float(angle), Image.Resampling.BICUBIC)
         rotated_width, rotated_height = rotated_image.size
         dx = rotated_width - img_w
         dy = rotated_height - img_h
         cropped_rotated_image = Image.new('RGBA', (img_w, img_h))
-        cropped_rotated_image.paste(rotated_image.crop((dx / 2, dy / 2, dx / 2 + img_w, dy / 2 + img_h)),
+        cropped_rotated_image.paste(rotated_image.crop((dx // 2, dy // 2, dx // 2 + img_w, dy // 2 + img_h)),
                                     (0, 0, img_w, img_h))
 
         final_image = Image.new('RGBA', (crop_w, crop_h), 0)
@@ -262,4 +267,4 @@ def croppic():
 
 
 if __name__ == '__main__':
-    socketio.run(app)
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)

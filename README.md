@@ -42,6 +42,37 @@ python app.py
 
 預設會在 `http://localhost:5000` 啟動，使用 Flask-SocketIO 內建的開發伺服器。
 
+## 測試
+
+```cmd
+pip install -r requirements-dev.txt
+pytest
+```
+
+測試會透過 `DATABASE_URL` 環境變數改用暫存的 SQLite,大頭照也寫到暫存資料夾,不會動到專案裡的 `app.db` 與 `static/mugshot`。
+
+### 變異測試 (Mutation Testing)
+
+使用 [cosmic-ray](https://github.com/sixty-north/cosmic-ray) 對 `app.py`、`dbModel.py` 做變異測試(mutmut 3 會跳過有 decorator 的函式,而本專案的路由全都有 decorator,所以不適用)。
+
+```cmd
+cosmic-ray init cosmic-ray.toml session.sqlite
+cosmic-ray baseline cosmic-ray.toml
+cosmic-ray exec cosmic-ray.toml session.sqlite
+cr-report session.sqlite --surviving-only
+```
+
+注意 cosmic-ray 執行時會直接改寫原始碼檔案、跑完再還原,執行前請先 commit,中途不要強制中斷。
+
+目前結果:111 個 mutants 殺掉 105 個,存活的 6 個都是等價 mutant(改了也不影響行為):
+
+| 位置 | Mutant | 為什麼等價 |
+| --- | --- | --- |
+| `login()` / `register()` | `request.method == 'GET'` → `<=` | 會進到 view 的只有 GET、POST、HEAD,三者 `<= 'GET'` 的結果與 `==` 相同 |
+| `test_connect()` | 移除 `@socketio.on('connect')` | 這個 handler 只有 `print`,沒有它連線也會被接受 |
+| `croppic()` | `file.stream.seek(0)` → `seek(1)` | Pillow 的 `Image.open()` 自己會先 `seek(0)` |
+| `if __name__ == '__main__'` | `==` → `is` / `<=` | `'__main__'` 是 interned 字串;`'app' <= '__main__'` 為 False |
+
 ## 執行畫面
 
 簡單的登入、註冊

@@ -104,6 +104,10 @@ web: gunicorn --threads 8 -w 1 app:app
 
 `-w 1` 是 Flask-SocketIO 的硬性要求;若需要多 worker 必須搭配 Redis 訊息隊列。
 
+正式環境請設定 `SECRET_KEY` 環境變數;沒設定時每次啟動都會隨機產生,重啟後所有人都需要重新登入。
+
+從舊版升級時請先執行 `flask db upgrade`(放寬 `Password` 欄位長度)。舊版用 MD5 存的密碼仍可登入,登入成功時會自動換成加鹽的 hash。
+
 ## 執行環境
 
 * Python 3.13.13

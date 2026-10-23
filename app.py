@@ -2,10 +2,12 @@ from flask import Flask, redirect, render_template, request, flash, url_for, jso
 from flask_socketio import SocketIO, emit, join_room
 from flask_login import UserMixin, LoginManager, login_required, current_user, login_user, logout_user
 from flask_migrate import Migrate
+from sqlalchemy.exc import IntegrityError
 from dbModel import UserAccounts, Message, db
 from PIL import Image
 from datetime import datetime
 import os
+import secrets
 import uuid
 
 MugShot_PATH = 'static/mugshot'
@@ -13,7 +15,8 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 MugShot_FOLDER = os.path.join(APP_ROOT, MugShot_PATH)
 
 app = Flask(__name__)
-app.secret_key = 'super secret string'  # Change this!
+# 正式環境請設定 SECRET_KEY；沒設的話每次啟動隨機產生，重啟後所有人都要重新登入
+app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:xxxxx@localhost/db'
 db.init_app(app)
@@ -60,6 +63,9 @@ def index():
     ).join(
         UserAccounts,
         UserAccounts.UserName == Message.UserName
+    ).order_by(
+        Message.CreateDate,
+        Message.Id
     ).all()
 
     mug_shot_title = UserAccounts.query.filter_by(UserName=user_id).first().MugShot
@@ -81,33 +87,40 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
-    if request.method == 'GET':
+    if request.method != 'POST':
         return render_template("login.html")
 
     username = request.form['username']
-    user = UserAccounts.query.filter_by(UserName=username).first()
-    if not user:
+    password = request.form['password']
+    account = UserAccounts.query.filter_by(UserName=username).first()
+    if not account or not account.check_password(password):
         return render_template("login.html", error="username or password error")
-    pw_form = UserAccounts.psw_to_md5(request.form['password'])
-    pw_db = user.Password
-    if pw_form == pw_db:
-        user = User()
-        user.id = username
-        login_user(user, remember=True)
-        flash('Logged in successfully')
-        return redirect(url_for('index'))
-    return render_template("login.html", error="username or password error")
+    if account.is_legacy_hash():
+        # 舊帳號的密碼是 MD5，登入成功時順便換成加鹽的 hash
+        account.set_password(password)
+        db.session.commit()
+    user = User()
+    user.id = username
+    login_user(user, remember=True)
+    flash('Logged in successfully')
+    return redirect(url_for('index'))
 
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'GET':
+    if request.method != 'POST':
         return render_template("register.html")
-    username = request.form['username']
-    password = request.form['password']
+    username = request.form.get('username', '')
+    password = request.form.get('password', '')
+    if not username or not password:
+        return render_template("register.html", error="username and password are required")
     new_account = UserAccounts(user_name=username, password=password, mugshot="default.jpg")
     db.session.add(new_account)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return render_template("register.html", error="UserName already exists.")
     return redirect(url_for("index"))
 
 

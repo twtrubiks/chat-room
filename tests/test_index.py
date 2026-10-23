@@ -15,7 +15,7 @@ MESSAGE_RE = re.compile(
 
 
 def rendered_messages(html):
-    return sorted(m.group('mugshot', 'user', 'text', 'time') for m in MESSAGE_RE.finditer(html))
+    return [m.group('mugshot', 'user', 'text', 'time') for m in MESSAGE_RE.finditer(html)]
 
 
 def add_message(app, username, text, created):
@@ -70,11 +70,23 @@ class TestIndexContent:
 
         html = client.get('/index').get_data(as_text=True)
 
-        assert rendered_messages(html) == sorted([
+        assert rendered_messages(html) == [
             ('alice.png', 'alice', 'hello from alice', '09:05'),
             ('bob.png', 'bob', 'hi from bob', '13:45'),
             ('alice.png', 'alice', 'bye', '23:59'),
-        ])
+        ]
+
+    def test_history_is_in_chronological_order(self, flask_app, auth_client):
+        add_message(flask_app, 'alice', 'third', datetime(2024, 1, 2, 8, 0))
+        add_message(flask_app, 'alice', 'first', datetime(2024, 1, 1, 9, 0))
+        add_message(flask_app, 'alice', 'second', datetime(2024, 1, 1, 10, 0))
+        # 同一時間的訊息依寫入順序
+        add_message(flask_app, 'alice', 'fourth', datetime(2024, 1, 3, 7, 0))
+        add_message(flask_app, 'alice', 'fifth', datetime(2024, 1, 3, 7, 0))
+
+        html = auth_client.get('/index').get_data(as_text=True)
+
+        assert [text for _, _, text, _ in rendered_messages(html)] == ['first', 'second', 'third', 'fourth', 'fifth']
 
     def test_messages_without_account_are_skipped(self, flask_app, auth_client):
         add_message(flask_app, 'ghost', 'orphan message', datetime(2024, 1, 1, 9, 5))

@@ -1,9 +1,11 @@
+import functools
 import io
 import os
 import tempfile
 
 import pytest
 from PIL import Image
+from werkzeug.security import generate_password_hash
 
 # app.py 在 import 時就會用 SQLALCHEMY_DATABASE_URI 建立 engine，
 # 所以必須在 import app 之前把 DB 指到暫存檔，避免動到專案裡的 app.db。
@@ -12,6 +14,14 @@ os.environ['DATABASE_URL'] = 'sqlite:///' + os.path.join(_DB_DIR, 'test.db')
 
 import app as chat_app  # noqa: E402
 from dbModel import UserAccounts, db  # noqa: E402
+import dbModel  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def fast_password_hash(monkeypatch):
+    # scrypt 每次要 ~0.1 秒，測試裡換成低成本的 pbkdf2；check_password_hash 兩種格式都認得
+    monkeypatch.setattr(dbModel, 'generate_password_hash',
+                        functools.partial(generate_password_hash, method='pbkdf2:sha256:1'))
 
 
 @pytest.fixture

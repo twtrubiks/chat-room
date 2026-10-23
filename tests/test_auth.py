@@ -3,10 +3,17 @@ import hashlib
 import pytest
 
 import app as chat_app
+from dbModel import UserAccounts, db
 
 
 def md5(s):
     return hashlib.md5(s.encode('utf-8')).hexdigest()
+
+
+def set_password_column(app, username, value):
+    with app.app_context():
+        UserAccounts.query.filter_by(UserName=username).first().Password = value
+        db.session.commit()
 
 
 class TestQueryUser:
@@ -40,6 +47,9 @@ class TestLogin:
         assert b'name="username"' in resp.data
         assert b'name="password"' in resp.data
 
+    def test_head(self, client):
+        assert client.head('/login').status_code == 200
+
     def test_get_when_logged_in_redirects_to_index(self, auth_client):
         resp = auth_client.get('/login')
         assert resp.status_code == 302
@@ -64,11 +74,8 @@ class TestLogin:
         with client.session_transaction() as sess:
             assert '_user_id' not in sess
 
-    # 同時涵蓋「錯誤密碼的雜湊值比正確的小 / 大」兩種情況，
-    # 這樣把 == 換成 <=、>= 之類的比較運算子也會被抓到。
-    @pytest.mark.parametrize('wrong', ['wrong', 'badpass'])
+    @pytest.mark.parametrize('wrong', ['wrong', ''])
     def test_wrong_password(self, client, make_user, login, wrong):
-        assert md5(wrong) != md5('secret')
         make_user('alice', 'secret')
         resp = login('alice', wrong)
 
@@ -77,8 +84,46 @@ class TestLogin:
         with client.session_transaction() as sess:
             assert '_user_id' not in sess
 
-    def test_wrong_password_hashes_cover_both_orderings(self):
-        assert md5('wrong') < md5('secret') < md5('badpass')
+    def test_account_without_password_cannot_login_with_empty_password(self, flask_app, client, make_user,
+                                                                      login):
+        # 舊版允許空密碼註冊，DB 裡存的是 NULL
+        make_user('alice', 'secret')
+        set_password_column(flask_app, 'alice', None)
+
+        resp = login('alice', '')
+
+        assert b'username or password error' in resp.data
+        with client.session_transaction() as sess:
+            assert '_user_id' not in sess
+
+    def test_login_keeps_modern_hash(self, client, make_user, login, get_user):
+        make_user('alice', 'secret')
+        before = get_user('alice').Password
+
+        login('alice', 'secret')
+
+        assert get_user('alice').Password == before
+
+    def test_legacy_md5_account_is_upgraded_on_login(self, flask_app, client, make_user, login, get_user):
+        make_user('alice', 'secret')
+        set_password_column(flask_app, 'alice', md5('secret'))
+
+        resp = login('alice', 'secret')
+
+        assert resp.headers['Location'] == '/index'
+        user = get_user('alice')
+        assert not user.is_legacy_hash()
+        assert user.check_password('secret')
+
+    def test_legacy_md5_account_wrong_password_is_not_upgraded(self, flask_app, client, make_user, login,
+                                                               get_user):
+        make_user('alice', 'secret')
+        set_password_column(flask_app, 'alice', md5('secret'))
+
+        resp = login('alice', 'wrong')
+
+        assert b'username or password error' in resp.data
+        assert get_user('alice').Password == md5('secret')
 
 
 class TestRegister:
@@ -87,6 +132,9 @@ class TestRegister:
         assert resp.status_code == 200
         assert b'name="username"' in resp.data
 
+    def test_head(self, client):
+        assert client.head('/register').status_code == 200
+
     def test_creates_account(self, client, get_user):
         resp = client.post('/register', data={'username': 'bob', 'password': 'pw123'})
 
@@ -94,13 +142,48 @@ class TestRegister:
         assert resp.headers['Location'] == '/index'
         user = get_user('bob')
         assert user is not None
-        assert user.Password == md5('pw123')
+        assert user.check_password('pw123')
         assert user.MugShot == 'default.jpg'
 
     def test_registered_user_can_login(self, client, login):
         client.post('/register', data={'username': 'bob', 'password': 'pw123'})
         resp = login('bob', 'pw123')
         assert resp.headers['Location'] == '/index'
+
+
+    def test_duplicate_username(self, client, make_user, get_user):
+        make_user('alice', 'secret')
+        before = get_user('alice').Password
+
+        resp = client.post('/register', data={'username': 'alice', 'password': 'other'})
+
+        assert resp.status_code == 200
+        assert b'UserName already exists.' in resp.data
+        assert get_user('alice').Password == before
+
+    def test_can_register_again_after_duplicate(self, client, make_user, get_user):
+        make_user('alice', 'secret')
+        client.post('/register', data={'username': 'alice', 'password': 'other'})
+
+        resp = client.post('/register', data={'username': 'bob', 'password': 'pw123'})
+
+        assert resp.headers['Location'] == '/index'
+        assert get_user('bob') is not None
+
+    @pytest.mark.parametrize('data', [
+        {'username': 'bob', 'password': ''},
+        {'username': '', 'password': 'pw123'},
+        {'username': 'bob'},
+        {'password': 'pw123'},
+        {},
+    ])
+    def test_username_and_password_required(self, client, get_user, data):
+        resp = client.post('/register', data=data)
+
+        assert resp.status_code == 200
+        assert b'username and password are required' in resp.data
+        assert get_user('bob') is None
+        assert get_user('') is None
 
 
 class TestLogout:

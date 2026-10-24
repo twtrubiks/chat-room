@@ -1,3 +1,4 @@
 -r requirements.txt
 pytest==9.1.1
 cosmic-ray==8.7.0
+playwright==1.63.0

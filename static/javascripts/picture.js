@@ -3,6 +3,7 @@
     const fileInput = document.getElementById('cropInput');
     const image = document.getElementById('cropImage');
     const confirmBtn = document.getElementById('cropConfirm');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
     let cropper = null;
 
     fileInput.addEventListener('change', (e) => {
@@ -32,7 +33,7 @@
             canvas.toBlob((blob) => {
                 const fd = new FormData();
                 fd.append('image', blob, 'avatar.png');
-                fetch('/croppic', { method: 'POST', body: fd })
+                fetch('/croppic', { method: 'POST', headers: { 'X-CSRFToken': csrfToken }, body: fd })
                     .then((r) => r.json())
                     .then((res) => {
                         if (res.status === 'success') {

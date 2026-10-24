@@ -1,9 +1,15 @@
-import re
+from datetime import datetime
 
 import pytest
 
 import app as chat_app
 from dbModel import Message
+
+
+class FrozenDatetime(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2024, 5, 6, 7, 8, 9)
 
 
 @pytest.fixture
@@ -30,7 +36,9 @@ def test_connect(socket_client):
     assert socket_client().is_connected()
 
 
-def test_send_inquiry_saves_and_broadcasts_to_room(flask_app, client, make_user, login, socket_client):
+def test_send_inquiry_saves_and_broadcasts_to_room(flask_app, client, make_user, login, socket_client,
+                                                   monkeypatch):
+    monkeypatch.setattr(chat_app, 'datetime', FrozenDatetime)
     make_user('alice', 'secret', mugshot='alice.png')
     login('alice', 'secret')
     sender = socket_client(client)
@@ -39,12 +47,17 @@ def test_send_inquiry_saves_and_broadcasts_to_room(flask_app, client, make_user,
     sender.emit('sendInquiry', {'msg': 'hello', 'room': 'A_Room'})
 
     assert all_messages(flask_app) == [('alice', 'hello')]
+    with flask_app.app_context():
+        assert Message.query.one().CreateDate == datetime(2024, 5, 6, 7, 8, 9)
     received = sender.get_received()
     assert len(received) == 1
     assert received[0]['name'] == 'getInquiry'
-    data = received[0]['args'][0]
-    assert re.fullmatch(r'\d{2}:\d{2}', data.pop('time'))
-    assert data == {'Name': 'alice', 'PictureUrl': 'alice.png', 'msg': 'hello'}
+    assert received[0]['args'][0] == {
+        'time': '2024-05-06 07:08',
+        'Name': 'alice',
+        'PictureUrl': 'alice.png',
+        'msg': 'hello',
+    }
 
 
 def test_broadcast_only_reaches_joined_room(client, make_user, login, socket_client):

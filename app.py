@@ -2,6 +2,7 @@ from flask import Flask, redirect, render_template, request, flash, url_for, jso
 from flask_socketio import SocketIO, emit, join_room
 from flask_login import UserMixin, LoginManager, login_required, current_user, login_user, logout_user
 from flask_migrate import Migrate
+from flask_wtf.csrf import CSRFProtect
 from sqlalchemy.exc import IntegrityError
 from dbModel import UserAccounts, Message, db
 from PIL import Image
@@ -17,7 +18,8 @@ MugShot_FOLDER = os.path.join(APP_ROOT, MugShot_PATH)
 app = Flask(__name__)
 # 正式環境請設定 SECRET_KEY；沒設的話每次啟動隨機產生，重啟後所有人都要重新登入
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
+# 不用 DATABASE_URL：Heroku 等平台會自動設定它（而且是 SQLAlchemy 不接受的 postgres:// 格式）
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('CHAT_ROOM_DATABASE_URL', 'sqlite:///app.db')
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:xxxxx@localhost/db'
 db.init_app(app)
 migrate = Migrate(app, db, render_as_batch=True)
@@ -27,12 +29,25 @@ login_manager.session_protection = "strong"
 login_manager.login_view = "login"
 login_manager.login_message = "Please LOG IN"
 login_manager.login_message_category = "info"
+# CSRF token 跟著 session 走、不另外過期，避免聊天頁開太久之後上傳大頭照失敗
+app.config['WTF_CSRF_TIME_LIMIT'] = None
+csrf = CSRFProtect(app)
 
 socketio = SocketIO(app, async_mode='threading')
 
 
 class User(UserMixin):
     pass
+
+
+def sign_in(username):
+    user = User()
+    user.id = username
+    login_user(user, remember=True)
+
+
+def format_time(dt):
+    return dt.strftime('%Y-%m-%d %H:%M')
 
 
 def query_user(username):
@@ -76,7 +91,7 @@ def index():
         messages_dic['UserName'] = message.Message.UserName
         messages_dic['Messages'] = message.Message.Messages
         messages_dic['MugShot'] = message.MugShot
-        messages_dic['CreateDate'] = message.Message.CreateDate.strftime('%H:%M')
+        messages_dic['CreateDate'] = format_time(message.Message.CreateDate)
         messages_list.append(messages_dic)
         messages_dic = {}
     return render_template("index.html", **locals())
@@ -99,9 +114,7 @@ def login():
         # 舊帳號的密碼是 MD5，登入成功時順便換成加鹽的 hash
         account.set_password(password)
         db.session.commit()
-    user = User()
-    user.id = username
-    login_user(user, remember=True)
+    sign_in(username)
     flash('Logged in successfully')
     return redirect(url_for('index'))
 
@@ -110,7 +123,7 @@ def login():
 def register():
     if request.method != 'POST':
         return render_template("register.html")
-    username = request.form.get('username', '')
+    username = request.form.get('username', '').strip()
     password = request.form.get('password', '')
     if not username or not password:
         return render_template("register.html", error="username and password are required")
@@ -121,6 +134,7 @@ def register():
     except IntegrityError:
         db.session.rollback()
         return render_template("register.html", error="UserName already exists.")
+    sign_in(username)
     return redirect(url_for("index"))
 
 
@@ -128,9 +142,10 @@ def register():
 def api_check_user_name_exist():
     username = (request.form.get('username')
                 or (request.get_json(silent=True) or {}).get('username'))
-    if not username:
+    # 跟 register() 一樣去掉前後空白再比對
+    if not isinstance(username, str) or not username.strip():
         return jsonify(False)
-    user = UserAccounts.query.filter_by(UserName=username).first()
+    user = UserAccounts.query.filter_by(UserName=username.strip()).first()
     return jsonify(user is None)
 
 
@@ -169,7 +184,7 @@ def send_inquiry(msg):
     db.session.commit()
     mug_shot = UserAccounts.query.filter_by(UserName=user_id).first().MugShot
     data = {
-        'time': create_date.strftime('%H:%M'),
+        'time': format_time(create_date),
         'Name': user_id,
         'PictureUrl': mug_shot,
         'msg': msg['msg'],

@@ -11,6 +11,7 @@
         </div>
     </div>
     <form action="{{ url_for('register') }}" method="POST" class="needs-validation" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <p class="text-danger">{{ error }}</p>
         <div class="mb-3">
             <label for="username" class="form-label">User Name</label>

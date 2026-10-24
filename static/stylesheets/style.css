@@ -151,6 +151,7 @@ Messages
   position: absolute;
   bottom: -15px;
   font-size: 9px;
+  white-space: nowrap;
   color: rgba(255, 255, 255, 0.3);
 }
 .messages .message::before {

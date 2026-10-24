@@ -148,11 +148,45 @@ class TestRegister:
         assert user.check_password('pw123')
         assert user.MugShot == 'default.jpg'
 
-    def test_registered_user_can_login(self, client, login):
+    def test_registration_logs_user_in(self, client):
         client.post('/register', data={'username': 'bob', 'password': 'pw123'})
-        resp = login('bob', 'pw123')
-        assert resp.headers['Location'] == '/index'
 
+        with client.session_transaction() as sess:
+            assert sess['_user_id'] == 'bob'
+        assert client.get_cookie('remember_token') is not None
+        assert '<h1>bob</h1>' in client.get('/index').get_data(as_text=True)
+
+    def test_registered_user_can_login_again(self, client, login):
+        client.post('/register', data={'username': 'bob', 'password': 'pw123'})
+        client.get('/logout')
+
+        resp = login('bob', 'pw123')
+
+        assert resp.headers['Location'] == '/index'
+        with client.session_transaction() as sess:
+            assert sess['_user_id'] == 'bob'
+
+    def test_failed_registration_does_not_log_in(self, client, make_user):
+        make_user('alice', 'secret')
+        client.post('/register', data={'username': 'alice', 'password': 'other'})
+
+        with client.session_transaction() as sess:
+            assert '_user_id' not in sess
+
+    def test_username_is_trimmed(self, client, get_user):
+        client.post('/register', data={'username': '  bob  ', 'password': 'pw123'})
+
+        assert get_user('bob') is not None
+        assert get_user('  bob  ') is None
+        with client.session_transaction() as sess:
+            assert sess['_user_id'] == 'bob'
+
+    def test_trimmed_duplicate_is_rejected(self, client, make_user):
+        make_user('alice', 'secret')
+
+        resp = client.post('/register', data={'username': ' alice ', 'password': 'other'})
+
+        assert b'UserName already exists.' in resp.data
 
     def test_duplicate_username(self, client, make_user, get_user):
         make_user('alice', 'secret')
@@ -176,6 +210,7 @@ class TestRegister:
     @pytest.mark.parametrize('data', [
         {'username': 'bob', 'password': ''},
         {'username': '', 'password': 'pw123'},
+        {'username': '   ', 'password': 'pw123'},
         {'username': 'bob'},
         {'password': 'pw123'},
         {},
@@ -187,6 +222,7 @@ class TestRegister:
         assert b'username and password are required' in resp.data
         assert get_user('bob') is None
         assert get_user('') is None
+        assert get_user('   ') is None
 
 
 class TestLogout:
@@ -221,11 +257,19 @@ class TestCheckUserNameExist:
         resp = client.post('/API_check_UserNameExist', json={'username': 'alice'})
         assert resp.get_json() is False
 
+    def test_name_is_trimmed_like_register(self, client, make_user):
+        make_user('alice')
+        assert client.post('/API_check_UserNameExist', data={'username': ' alice '}).get_json() is False
+        assert client.post('/API_check_UserNameExist', json={'username': ' alice '}).get_json() is False
+
     @pytest.mark.parametrize('kwargs', [
         {},
         {'data': {'username': ''}},
+        {'data': {'username': '   '}},
         {'json': {}},
         {'json': {'username': ''}},
+        {'json': {'username': 123}},
+        {'json': {'username': ['alice']}},
     ])
     def test_missing_username(self, client, kwargs):
         resp = client.post('/API_check_UserNameExist', **kwargs)

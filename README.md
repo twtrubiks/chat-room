@@ -69,7 +69,7 @@ cr-report session.sqlite --surviving-only
 
 注意 cosmic-ray 執行時會直接改寫原始碼檔案、跑完再還原,執行前請先 commit,中途不要強制中斷。
 
-目前結果:120 個 mutants 殺掉 113 個,存活的 7 個都是等價 mutant(改了也不影響行為):
+目前結果:122 個 mutants 殺掉 115 個,存活的 7 個都是等價 mutant(改了也不影響行為):
 
 | 位置 | Mutant | 為什麼等價 |
 | --- | --- | --- |
@@ -78,6 +78,8 @@ cr-report session.sqlite --surviving-only
 | `test_connect()` | 移除 `@socketio.on('connect')` | 這個 handler 只有 `print`,沒有它連線也會被接受 |
 | `croppic()` | `file.stream.seek(0)` → `seek(1)` | Pillow 的 `Image.open()` 自己會先 `seek(0)` |
 | `if __name__ == '__main__'` | `==` → `is` / `<=` | `'__main__'` 是 interned 字串;`'app' <= '__main__'` 為 False |
+
+cosmic-ray 只能變異 Python,所以前端 JS 是手動做變異(例如拿掉 CSRF header、拿掉 `escapeHTML`、Shift+Enter 也送出、不等帳號檢查就送出)再跑 `tests/e2e`:18 個殺掉 17 個,存活的是 `register.js` 裡「檢查快取要比對名稱」的條件,因為名稱一改就會觸發 `input` 事件清掉快取,這個條件只是防禦性寫法。
 
 ## 執行畫面
 

@@ -52,9 +52,11 @@ playwright install chromium
 pytest
 ```
 
-測試會透過 `CHAT_ROOM_DATABASE_URL` 改用暫存的 SQLite,大頭照也寫到暫存資料夾,不會動到專案裡的 `app.db` 與 `static/mugshot`。
+測試會透過 `CHAT_ROOM_DATABASE_URL` 改用暫存的 SQLite,大頭照也寫到暫存資料夾,不會動到 `instance/app.db` 與 `static/mugshot`。
 
 `tests/e2e/` 是用 [Playwright](https://playwright.dev/python/) 開真的瀏覽器測前端 JS(登入、註冊檢查、聊天、上傳大頭照)。頁面會從 CDN 載入 Bootstrap、Socket.IO、Cropper.js,所以需要網路;只想跑後端測試可以用 `pytest --ignore=tests/e2e`。
+
+GitHub Actions(`.github/workflows/tests.yml`)會在每次 push 與 PR 自動跑全部測試。
 
 ### 變異測試 (Mutation Testing)
 

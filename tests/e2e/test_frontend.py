@@ -20,6 +20,23 @@ def message_texts(page):
     )
 
 
+def record_sent_messages(page):
+    """記錄頁面送出的 sendInquiry 封包（WebSocket frame 或 polling 的 POST 都算）。"""
+    sent = []
+
+    def on_websocket(ws):
+        ws.on('framesent', lambda payload: sent.append(payload) if 'sendInquiry' in str(payload) else None)
+
+    def on_request(request):
+        body = request.post_data or ''
+        if '/socket.io/' in request.url and 'sendInquiry' in body:
+            sent.append(body)
+
+    page.on('websocket', on_websocket)
+    page.on('request', on_request)
+    return sent
+
+
 class TestLoginPage:
     def test_empty_form_is_not_submitted(self, new_page):
         page = new_page()
@@ -190,8 +207,15 @@ class TestChat:
         expect(bob.locator('.messages-content .message')).to_have_count(2)
         assert message_texts(bob) == ['<b>hi</b> bob', 'hello alice']
 
-    def test_blank_and_shift_enter_are_not_sent(self, login_page, wait_for_room):
-        alice = login_page('alice')
+    def test_blank_and_shift_enter_are_not_sent(self, new_page, make_user, wait_for_room):
+        make_user('alice')
+        alice = new_page()
+        sent = record_sent_messages(alice)
+        alice.goto('/login')
+        alice.fill('#username', 'alice')
+        alice.fill('#password', 'secret')
+        alice.click('button[type=submit]')
+        alice.wait_for_url('**/index')
         wait_for_room(1)
 
         alice.fill('.message-input', '   ')
@@ -204,6 +228,9 @@ class TestChat:
 
         expect(alice.locator('.messages-content .message')).to_have_count(1)
         assert message_texts(alice) == ['line one\nline two']
+        # 空白訊息在前端就擋掉，根本不會送到伺服器
+        assert len(sent) == 1
+        assert 'line one' in sent[0]
 
 
 class TestTimezone:

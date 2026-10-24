@@ -1,0 +1,43 @@
+# 變異測試比較久（數分鐘），手動觸發：Actions > mutation > Run workflow
+name: mutation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run cosmic-ray
+        run: |
+          cosmic-ray init cosmic-ray.toml session.sqlite
+          cosmic-ray baseline cosmic-ray.toml
+          cosmic-ray exec cosmic-ray.toml session.sqlite
+      - name: Report surviving mutants
+        run: cr-report session.sqlite --surviving-only
+      - name: Fail if too many mutants survive
+        run: cr-rate --fail-over 5 session.sqlite
+
+  javascript:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Install Chromium for E2E tests
+        run: python -m playwright install --with-deps chromium
+      - name: Run JS mutation tests
+        run: python tools/js_mutation_test.py

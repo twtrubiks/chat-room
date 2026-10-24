@@ -8,7 +8,7 @@ from PIL import Image
 from werkzeug.security import generate_password_hash
 
 # app.py 在 import 時就會用 SQLALCHEMY_DATABASE_URI 建立 engine，
-# 所以必須在 import app 之前把 DB 指到暫存檔，避免動到專案裡的 app.db。
+# 所以必須在 import app 之前把 DB 指到暫存檔，避免動到 instance/app.db。
 _DB_DIR = tempfile.mkdtemp(prefix='chat-room-test-')
 os.environ['CHAT_ROOM_DATABASE_URL'] = 'sqlite:///' + os.path.join(_DB_DIR, 'test.db')
 

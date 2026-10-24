@@ -149,7 +149,8 @@ def api_check_user_name_exist():
     return jsonify(user is None)
 
 
-@app.route('/logout')
+# 用 POST 才會經過 CSRF 檢查，別的網站沒辦法讓使用者被登出
+@app.route('/logout', methods=['POST'])
 def logout():
     logout_user()
     return redirect(url_for('index'))
@@ -159,13 +160,6 @@ def logout():
 def join(message):
     join_room(message['room'])
     print('join')
-
-
-@socketio.on('connect')
-def test_connect():
-    # Userid = session.get('UserId')
-    # print(Userid, 'connectd')
-    print('connect')
 
 
 @socketio.on('sendInquiry')
@@ -202,7 +196,7 @@ def croppic():
     try:
         img = Image.open(file.stream)
         img.verify()
-        file.stream.seek(0)
+        # verify() 之後要重新開檔；Image.open() 會自己 seek 回開頭
         img = Image.open(file.stream)
         fmt = (img.format or 'PNG').lower()
 

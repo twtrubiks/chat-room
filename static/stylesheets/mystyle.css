@@ -9,6 +9,26 @@
     color: #ff1f57;
 }
 
+.logout-form {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    transform: translateY(-50%);
+    margin: 0;
+}
+
+.logout-button {
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.logout-button:hover {
+    color: #ff1f57;
+}
+
 .messages-content {
     overflow-y: auto;
     scrollbar-width: thin;

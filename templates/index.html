@@ -17,6 +17,12 @@
             <img src="static/mugshot/{{ mug_shot_title }}" />
         </figure>
         <i class="fa-solid fa-gear" aria-hidden="true" data-bs-toggle="modal" data-bs-target="#CroppicModal"></i>
+        <form class="logout-form" action="{{ url_for('logout') }}" method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="logout-button" title="Logout" aria-label="Logout">
+                <i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i>
+            </button>
+        </form>
     </div>
 
     <div class="messages">

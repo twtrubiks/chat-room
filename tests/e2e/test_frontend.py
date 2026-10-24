@@ -33,6 +33,19 @@ class TestLoginPage:
         expect(page.locator('.chat-title h1')).to_have_text('alice')
 
 
+class TestLogout:
+    def test_logout_button(self, login_page):
+        page = login_page('alice')
+
+        page.click('.logout-button')
+
+        # 登出後導回首頁，因為已經沒登入，會再被轉到登入頁
+        page.wait_for_url('**/login?next=*')
+        expect(page.locator('#username')).to_be_visible()
+        page.goto('/index')
+        page.wait_for_url('**/login?next=*')
+
+
 class TestRegisterPage:
     def test_existing_username_blocks_submit(self, new_page, make_user, get_user):
         make_user('alice')

@@ -80,6 +80,22 @@ def test_croppic_requires_header(csrf_client, make_user, make_image, get_user):
     assert resp.get_json()['status'] == 'success'
 
 
+def test_logout_requires_token(csrf_client, make_user):
+    make_user('alice', 'secret')
+    token = csrf_token(csrf_client)
+    csrf_client.post('/login', data={'username': 'alice', 'password': 'secret', 'csrf_token': token})
+
+    assert csrf_client.post('/logout').status_code == 400
+    with csrf_client.session_transaction() as sess:
+        assert sess['_user_id'] == 'alice'
+
+    html = csrf_client.get('/index').get_data(as_text=True)
+    form_token = re.search(r'<form class="logout-form".*?name="csrf_token" value="([^"]+)"', html, re.S).group(1)
+    assert csrf_client.post('/logout', data={'csrf_token': form_token}).status_code == 302
+    with csrf_client.session_transaction() as sess:
+        assert '_user_id' not in sess
+
+
 def test_token_does_not_expire_while_session_lives(csrf_client, monkeypatch):
     # 聊天頁可能開好幾個小時才上傳大頭照，token 不能一小時就過期（Flask-WTF 預設 3600 秒）
     token = csrf_token(csrf_client, '/register')

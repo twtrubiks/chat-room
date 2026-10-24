@@ -10,6 +10,9 @@
             <p>Example Use Flask</p>
         </div>
     </div>
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+    {% endfor %}
     <form action="{{ url_for('login') }}" method="post" class="needs-validation" novalidate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <p class="text-danger">{{ error }}</p>

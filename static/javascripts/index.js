@@ -3,29 +3,40 @@
     const messageInput = document.querySelector('.message-input');
     const messageSubmit = document.querySelector('.message-submit');
 
+    // 登入後伺服器會自動把連線加進聊天室
     const socket = io();
-
-    socket.on('connect', () => {
-        socket.emit('join', { room: 'A_Room' });
-    });
 
     function scrollToBottom() {
         messages.scrollTop = messages.scrollHeight;
     }
 
-    function escapeHTML(s) {
-        const div = document.createElement('div');
-        div.textContent = s == null ? '' : String(s);
-        return div.innerHTML;
+    // 伺服器給的是帶時區的 ISO 時間，換成瀏覽器當地時間顯示
+    function formatTime(iso) {
+        const d = new Date(iso);
+        if (isNaN(d)) return iso;
+        const pad = (n) => String(n).padStart(2, '0');
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+            ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
     }
 
+    // 用 DOM API 組訊息，不拼 HTML 字串，使用者輸入的內容一律當純文字
     function appendMessage(data) {
+        const img = document.createElement('img');
+        img.src = '/static/mugshot/' + data.PictureUrl;
+        const avatar = document.createElement('figure');
+        avatar.className = 'avatar';
+        avatar.appendChild(img);
+
+        const time = document.createElement('time');
+        time.dateTime = data.time;
+        time.textContent = formatTime(data.time);
+        const timestamp = document.createElement('div');
+        timestamp.className = 'timestamp';
+        timestamp.appendChild(time);
+
         const wrapper = document.createElement('div');
         wrapper.className = 'message new';
-        wrapper.innerHTML =
-            '<figure class="avatar"><img src="/static/mugshot/' + escapeHTML(data.PictureUrl) + '"></figure>' +
-            escapeHTML(data.msg) +
-            '<div class="timestamp">' + escapeHTML(data.time) + '</div>';
+        wrapper.append(avatar, document.createTextNode(data.msg), timestamp);
         messages.appendChild(wrapper);
         scrollToBottom();
     }
@@ -33,7 +44,7 @@
     function insertMessage() {
         const msg = (messageInput.value || '').trim();
         if (!msg) return;
-        socket.emit('sendInquiry', { msg: msg, room: 'A_Room' });
+        socket.emit('sendInquiry', { msg: msg });
         messageInput.value = '';
     }
 
@@ -46,6 +57,10 @@
             e.preventDefault();
             insertMessage();
         }
+    });
+
+    messages.querySelectorAll('time[datetime]').forEach((el) => {
+        el.textContent = formatTime(el.dateTime);
     });
 
     window.addEventListener('load', scrollToBottom);

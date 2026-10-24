@@ -31,14 +31,14 @@
                 <div class="message new">
                     <figure class="avatar"><img src="static/mugshot/{{ data.MugShot }}" alt="{{ data.UserName }}" title="{{ data.UserName }}"></figure>
                     {{ data.Messages }}
-                    <div class="timestamp">{{ data.CreateDate }}</div>
+                    <div class="timestamp"><time datetime="{{ data.CreateDateISO }}">{{ data.CreateDate }}</time></div>
                 </div>
             {% endfor %}
         </div>
     </div>
 
     <div class="message-box">
-        <textarea class="message-input" placeholder="Type message..."></textarea>
+        <textarea class="message-input" placeholder="Type message..." maxlength="{{ max_message_length }}"></textarea>
         <button type="button" class="message-submit">Send</button>
     </div>
 </div>

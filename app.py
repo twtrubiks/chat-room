@@ -1,4 +1,4 @@
-from flask import Flask, redirect, render_template, request, flash, url_for, jsonify
+from flask import Flask, redirect, render_template, request, url_for, jsonify
 from flask_socketio import SocketIO, emit, join_room
 from flask_login import UserMixin, LoginManager, login_required, current_user, login_user, logout_user
 from flask_migrate import Migrate
@@ -14,6 +14,12 @@ import uuid
 MugShot_PATH = 'static/mugshot'
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 MugShot_FOLDER = os.path.join(APP_ROOT, MugShot_PATH)
+# 前端會把大頭照裁成 256x256 再上傳，這些上限是擋掉直接呼叫 API 的超大檔案
+MAX_UPLOAD_BYTES = 2 * 1024 * 1024
+MAX_MUGSHOT_SIDE = 1024
+MAX_MESSAGE_LENGTH = 1000
+# 只有一個聊天室，由伺服器決定，不接受前端指定
+CHAT_ROOM = 'A_Room'
 
 app = Flask(__name__)
 # 正式環境請設定 SECRET_KEY；沒設的話每次啟動隨機產生，重啟後所有人都要重新登入
@@ -32,6 +38,7 @@ login_manager.login_message_category = "info"
 # CSRF token 跟著 session 走、不另外過期，避免聊天頁開太久之後上傳大頭照失敗
 app.config['WTF_CSRF_TIME_LIMIT'] = None
 csrf = CSRFProtect(app)
+app.config['MAX_CONTENT_LENGTH'] = MAX_UPLOAD_BYTES
 
 socketio = SocketIO(app, async_mode='threading')
 
@@ -48,6 +55,11 @@ def sign_in(username):
 
 def format_time(dt):
     return dt.strftime('%Y-%m-%d %H:%M')
+
+
+def to_iso(dt):
+    # DB 存的是伺服器當地時間（沒有時區）；加上時區後交給前端換算成使用者的當地時間
+    return dt.astimezone().isoformat(timespec='seconds')
 
 
 def query_user(username):
@@ -84,6 +96,7 @@ def index():
     ).all()
 
     mug_shot_title = UserAccounts.query.filter_by(UserName=user_id).first().MugShot
+    max_message_length = MAX_MESSAGE_LENGTH
     messages_dic = {}
     messages_list = []
     for message in message_data:
@@ -92,6 +105,7 @@ def index():
         messages_dic['Messages'] = message.Message.Messages
         messages_dic['MugShot'] = message.MugShot
         messages_dic['CreateDate'] = format_time(message.Message.CreateDate)
+        messages_dic['CreateDateISO'] = to_iso(message.Message.CreateDate)
         messages_list.append(messages_dic)
         messages_dic = {}
     return render_template("index.html", **locals())
@@ -115,7 +129,6 @@ def login():
         account.set_password(password)
         db.session.commit()
     sign_in(username)
-    flash('Logged in successfully')
     return redirect(url_for('index'))
 
 
@@ -153,37 +166,42 @@ def api_check_user_name_exist():
 @app.route('/logout', methods=['POST'])
 def logout():
     logout_user()
-    return redirect(url_for('index'))
+    return redirect(url_for('login'))
 
 
-@socketio.on('join')
-def join(message):
-    join_room(message['room'])
-    print('join')
+@socketio.on('connect')
+def on_connect(auth=None):
+    # 沒登入的連線直接拒絕，否則不用登入就能即時收到聊天內容
+    if not current_user.is_authenticated:
+        return False
+    join_room(CHAT_ROOM)
 
 
 @socketio.on('sendInquiry')
 def send_inquiry(msg):
     if not current_user.is_authenticated:
         return
+    text = msg.get('msg') if isinstance(msg, dict) else None
+    if not isinstance(text, str) or not text.strip() or len(text) > MAX_MESSAGE_LENGTH:
+        return
     user_id = current_user.id
     create_date = datetime.now()
 
     data_message = Message(
         user_name=user_id,
-        messages=msg['msg'],
+        messages=text,
         create_date=create_date
     )
     db.session.add(data_message)
     db.session.commit()
     mug_shot = UserAccounts.query.filter_by(UserName=user_id).first().MugShot
     data = {
-        'time': format_time(create_date),
+        'time': to_iso(create_date),
         'Name': user_id,
         'PictureUrl': mug_shot,
-        'msg': msg['msg'],
+        'msg': text,
     }
-    emit('getInquiry', data, room=msg['room'])
+    emit('getInquiry', data, room=CHAT_ROOM)
 
 
 @app.route('/croppic', methods=['POST'])
@@ -195,6 +213,9 @@ def croppic():
         return jsonify(status='error', message='no image'), 400
     try:
         img = Image.open(file.stream)
+        # Image.open() 只讀檔頭，在真正解碼之前先擋掉尺寸過大的圖
+        if img.width > MAX_MUGSHOT_SIDE or img.height > MAX_MUGSHOT_SIDE:
+            return jsonify(status='error', message='image too large'), 400
         img.verify()
         # verify() 之後要重新開檔；Image.open() 會自己 seek 回開頭
         img = Image.open(file.stream)
@@ -219,6 +240,11 @@ def croppic():
         )
     except Exception as e:
         return jsonify(status='error', message=str(e)), 500
+
+
+@app.errorhandler(413)
+def request_entity_too_large(e):
+    return jsonify(status='error', message='file too large'), 413
 
 
 if __name__ == '__main__':

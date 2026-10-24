@@ -9,7 +9,7 @@ MESSAGE_RE = re.compile(
     r'<div class="message new">\s*'
     r'<figure class="avatar"><img src="static/mugshot/(?P<mugshot>[^"]*)" alt="(?P<user>[^"]*)"[^>]*></figure>\s*'
     r'(?P<text>.*?)\s*'
-    r'<div class="timestamp">(?P<time>[^<]*)</div>',
+    r'<div class="timestamp"><time datetime="(?P<iso>[^"]*)">(?P<time>[^<]*)</time></div>',
     re.S,
 )
 
@@ -33,6 +33,13 @@ class TestLoginRequired:
         assert resp.headers['Location'].startswith('/login?next=')
         with client.session_transaction() as sess:
             assert ('info', 'Please LOG IN') in sess['_flashes']
+
+    def test_login_page_shows_login_message(self, client):
+        html = client.get('/index', follow_redirects=True).get_data(as_text=True)
+
+        assert '<div class="alert alert-info" role="alert">Please LOG IN</div>' in html
+        # 顯示過一次就清掉
+        assert 'Please LOG IN' not in client.get('/login').get_data(as_text=True)
 
     @pytest.mark.parametrize('path', ['/', '/index'])
     def test_logged_in_user_sees_chat(self, auth_client, path):
@@ -87,6 +94,18 @@ class TestIndexContent:
         html = auth_client.get('/index').get_data(as_text=True)
 
         assert [text for _, _, text, _ in rendered_messages(html)] == ['first', 'second', 'third', 'fourth', 'fifth']
+
+    def test_timestamps_carry_timezone_for_the_browser(self, flask_app, auth_client):
+        created = datetime(2024, 1, 1, 9, 5, 30, 123456)
+        add_message(flask_app, 'alice', 'hello', created)
+
+        html = auth_client.get('/index').get_data(as_text=True)
+
+        iso = MESSAGE_RE.search(html).group('iso')
+        # DB 存的是伺服器當地時間，送給瀏覽器時要帶上時區（精確到秒）
+        assert datetime.fromisoformat(iso) == created.replace(microsecond=0).astimezone()
+        assert datetime.fromisoformat(iso).tzinfo is not None
+        assert re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}', iso)
 
     def test_messages_without_account_are_skipped(self, flask_app, auth_client):
         add_message(flask_app, 'ghost', 'orphan message', datetime(2024, 1, 1, 9, 5))

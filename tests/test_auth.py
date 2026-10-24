@@ -64,7 +64,6 @@ class TestLogin:
         assert resp.headers['Location'] == '/index'
         with client.session_transaction() as sess:
             assert sess['_user_id'] == 'alice'
-            assert ('message', 'Logged in successfully') in sess['_flashes']
         # login_user(remember=True) 會發 remember cookie
         assert client.get_cookie('remember_token') is not None
 
@@ -230,9 +229,11 @@ class TestLogout:
         resp = auth_client.post('/logout')
 
         assert resp.status_code == 302
-        assert resp.headers['Location'] == '/index'
+        # 直接回登入頁，不會再繞去首頁、跳出「請先登入」的提示
+        assert resp.headers['Location'] == '/login'
         with auth_client.session_transaction() as sess:
             assert '_user_id' not in sess
+            assert '_flashes' not in sess
         assert auth_client.get('/index').status_code == 302
 
     def test_get_does_not_log_out(self, auth_client):

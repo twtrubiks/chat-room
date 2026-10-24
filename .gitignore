@@ -91,3 +91,8 @@ ENV/
 
 # cosmic-ray mutation testing session
 session.sqlite
+
+# 資料庫與使用者上傳的大頭照（預設頭像除外）
+app.db
+static/mugshot/*
+!static/mugshot/default.jpg

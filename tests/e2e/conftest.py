@@ -8,7 +8,7 @@ sync_api = pytest.importorskip('playwright.sync_api')
 
 import app as chat_app  # noqa: E402
 
-ROOM = 'A_Room'
+ROOM = chat_app.CHAT_ROOM
 
 
 @pytest.fixture(scope='session')
@@ -62,8 +62,8 @@ def new_page(browser, live_server):
     contexts = []
     errors = []
 
-    def _new_page():
-        context = browser.new_context(base_url=live_server)
+    def _new_page(**context_options):
+        context = browser.new_context(base_url=live_server, **context_options)
         context.set_default_timeout(10000)
         page = context.new_page()
         page.on('pageerror', lambda exc: errors.append('pageerror: {}'.format(exc)))
@@ -83,9 +83,9 @@ def new_page(browser, live_server):
 
 @pytest.fixture
 def login_page(new_page, make_user):
-    def _login_page(username, password='secret', mugshot='default.jpg'):
+    def _login_page(username, password='secret', mugshot='default.jpg', **context_options):
         make_user(username, password, mugshot=mugshot)
-        page = new_page()
+        page = new_page(**context_options)
         page.goto('/login')
         page.fill('#username', username)
         page.fill('#password', password)

@@ -1,9 +1,12 @@
 import io
 import os
 import re
+from datetime import datetime, timedelta, timezone
 
 from PIL import Image
 from playwright.sync_api import expect
+
+from dbModel import Message, db
 
 TIMESTAMP = re.compile(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$')
 
@@ -39,11 +42,11 @@ class TestLogout:
 
         page.click('.logout-button')
 
-        # 登出後導回首頁，因為已經沒登入，會再被轉到登入頁
-        page.wait_for_url('**/login?next=*')
-        expect(page.locator('#username')).to_be_visible()
+        page.wait_for_url('**/login')
+        expect(page.locator('.alert')).to_have_count(0)
         page.goto('/index')
         page.wait_for_url('**/login?next=*')
+        expect(page.locator('.alert-info')).to_have_text('Please LOG IN')
 
 
 class TestRegisterPage:
@@ -201,6 +204,34 @@ class TestChat:
 
         expect(alice.locator('.messages-content .message')).to_have_count(1)
         assert message_texts(alice) == ['line one\nline two']
+
+
+class TestTimezone:
+    def test_times_are_shown_in_viewer_timezone(self, e2e_app, login_page, wait_for_room):
+        created = datetime(2024, 1, 1, 9, 5)
+        with e2e_app.app_context():
+            db.session.add(Message('alice', 'history', created))
+            db.session.commit()
+        # 挑一個跟伺服器不同的時區，確定真的有換算（Etc/GMT+5 是 UTC-5）
+        server_offset = created.astimezone().utcoffset()
+        zone, offset = ('Etc/GMT-9', 9) if server_offset == timedelta(hours=-5) else ('Etc/GMT+5', -5)
+        viewer_tz = timezone(timedelta(hours=offset))
+
+        page = login_page('alice', timezone_id=zone)
+        wait_for_room(1)
+
+        expected = created.astimezone(viewer_tz).strftime('%Y-%m-%d %H:%M')
+        assert expected != created.strftime('%Y-%m-%d %H:%M')
+        expect(page.locator('.messages-content .timestamp')).to_have_text(expected)
+
+        # 即時收到的訊息也一樣換算
+        page.fill('.message-input', 'live')
+        page.press('.message-input', 'Enter')
+        expect(page.locator('.messages-content .message')).to_have_count(2)
+        with e2e_app.app_context():
+            sent_at = Message.query.filter_by(Messages='live').one().CreateDate
+        expect(page.locator('.messages-content .timestamp').nth(1)).to_have_text(
+            sent_at.astimezone(viewer_tz).strftime('%Y-%m-%d %H:%M'))
 
 
 class TestAvatarUpload:

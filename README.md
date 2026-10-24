@@ -64,11 +64,12 @@ cr-report session.sqlite --surviving-only
 
 注意 cosmic-ray 執行時會直接改寫原始碼檔案、跑完再還原,執行前請先 commit,中途不要強制中斷。
 
-目前結果:111 個 mutants 殺掉 105 個,存活的 6 個都是等價 mutant(改了也不影響行為):
+目前結果:120 個 mutants 殺掉 113 個,存活的 7 個都是等價 mutant(改了也不影響行為):
 
 | 位置 | Mutant | 為什麼等價 |
 | --- | --- | --- |
-| `login()` / `register()` | `request.method == 'GET'` → `<=` | 會進到 view 的只有 GET、POST、HEAD,三者 `<= 'GET'` 的結果與 `==` 相同 |
+| `login()` / `register()` | `request.method != 'POST'` → `<` | 會進到 view 的只有 GET、HEAD、POST,三者 `< 'POST'` 的結果與 `!=` 相同 |
+| `app.secret_key` | `secrets.token_hex(32)` → `33` | 只是多 1 byte 亂數,一樣安全 |
 | `test_connect()` | 移除 `@socketio.on('connect')` | 這個 handler 只有 `print`,沒有它連線也會被接受 |
 | `croppic()` | `file.stream.seek(0)` → `seek(1)` | Pillow 的 `Image.open()` 自己會先 `seek(0)` |
 | `if __name__ == '__main__'` | `==` → `is` / `<=` | `'__main__'` 是 interned 字串;`'app' <= '__main__'` 為 False |

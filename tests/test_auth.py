@@ -46,6 +46,7 @@ class TestLogin:
         assert resp.status_code == 200
         assert b'name="username"' in resp.data
         assert b'name="password"' in resp.data
+        assert b'username or password error' not in resp.data
 
     def test_head(self, client):
         assert client.head('/login').status_code == 200
@@ -131,6 +132,8 @@ class TestRegister:
         resp = client.get('/register')
         assert resp.status_code == 200
         assert b'name="username"' in resp.data
+        # GET 不能被當成送出空表單
+        assert b'username and password are required' not in resp.data
 
     def test_head(self, client):
         assert client.head('/register').status_code == 200

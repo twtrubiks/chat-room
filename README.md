@@ -69,9 +69,9 @@ cosmic-ray exec cosmic-ray.toml session.sqlite
 cr-report session.sqlite --surviving-only
 ```
 
-注意 cosmic-ray 執行時會直接改寫原始碼檔案、跑完再還原,執行前請先 commit,中途不要強制中斷。
+注意 cosmic-ray 執行時會直接改寫原始碼檔案、跑完再還原,執行前請先 commit,中途不要強制中斷。也可以在 GitHub 上手動執行 Actions 的 `mutation` workflow(存活率超過 5% 會失敗)。
 
-目前結果:119 個 mutants 殺掉 114 個,存活的 5 個都是等價 mutant(改了也不影響行為):
+目前結果:190 個 mutants 殺掉 185 個,存活的 5 個都是等價 mutant(改了也不影響行為):
 
 | 位置 | Mutant | 為什麼等價 |
 | --- | --- | --- |
@@ -79,7 +79,13 @@ cr-report session.sqlite --surviving-only
 | `app.secret_key` | `secrets.token_hex(32)` → `33` | 只是多 1 byte 亂數,一樣安全 |
 | `if __name__ == '__main__'` | `==` → `is` / `<=` | `'__main__'` 是 interned 字串;`'app' <= '__main__'` 為 False |
 
-cosmic-ray 只能變異 Python,所以前端 JS 是手動做變異(例如拿掉 CSRF header、拿掉 `escapeHTML`、Shift+Enter 也送出、不等帳號檢查就送出)再跑 `tests/e2e`:18 個殺掉 17 個,存活的是 `register.js` 裡「檢查快取要比對名稱」的條件,因為名稱一改就會觸發 `input` 事件清掉快取,這個條件只是防禦性寫法。
+cosmic-ray 只能變異 Python,前端 JS 的變異測試用專案附的腳本:
+
+```cmd
+python tools/js_mutation_test.py
+```
+
+腳本裡定義了一組 JS 變異(例如拿掉 CSRF header、把訊息當 HTML 插入、Shift+Enter 也送出、不等帳號檢查就送出、時間不換算時區),會在暫存的專案副本裡逐一套用並跑 `tests/e2e`,不會動到專案檔案。目前 20 個殺掉 19 個,存活的是 `register.js` 裡「檢查快取要比對名稱」的條件:名稱一改就會觸發 `input` 事件清掉快取,這個條件只是防禦性寫法。
 
 ## 執行畫面
 

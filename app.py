@@ -14,7 +14,7 @@ MugShot_FOLDER = os.path.join(APP_ROOT, MugShot_PATH)
 
 app = Flask(__name__)
 app.secret_key = 'super secret string'  # Change this!
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///app.db')
 # app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:xxxxx@localhost/db'
 db.init_app(app)
 migrate = Migrate(app, db, render_as_batch=True)

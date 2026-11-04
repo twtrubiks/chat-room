@@ -1,0 +1,8 @@
+[cosmic-ray]
+module-path = ["app.py", "dbModel.py"]
+timeout = 30.0
+excluded-modules = []
+test-command = "python -m pytest -x -q -p no:cacheprovider"
+
+[cosmic-ray.distributor]
+name = "local"

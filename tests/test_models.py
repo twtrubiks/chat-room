@@ -2,8 +2,10 @@ import hashlib
 from datetime import datetime
 
 import pytest
+import werkzeug.security
 from sqlalchemy.exc import IntegrityError
 
+import dbModel
 from dbModel import Message, UserAccounts, db
 
 
@@ -30,7 +32,8 @@ class TestUserAccounts:
         after = datetime.now()
 
         assert user.UserName == 'alice'
-        assert user.Password == md5('secret')
+        assert 'secret' not in user.Password
+        assert user.check_password('secret')
         assert user.MugShot == 'a.png'
         assert before <= user.CreateDate <= after
         # 沒給日期時兩者應該是同一個時間點
@@ -52,6 +55,48 @@ class TestUserAccounts:
             with pytest.raises(IntegrityError):
                 db.session.commit()
             db.session.rollback()
+
+
+class TestPassword:
+    def test_hash_is_salted(self):
+        a = UserAccounts('alice', 'secret', 'default.jpg')
+        b = UserAccounts('bob', 'secret', 'default.jpg')
+        assert a.Password != b.Password
+        assert not a.is_legacy_hash()
+
+    def test_hash_fits_column(self, monkeypatch):
+        # 用正式環境的預設演算法（scrypt）來量長度
+        monkeypatch.setattr(dbModel, 'generate_password_hash', werkzeug.security.generate_password_hash)
+        user = UserAccounts('alice', 'secret' * 100, 'default.jpg')
+        assert user.Password.startswith('scrypt:')
+        assert len(user.Password) <= UserAccounts.__table__.c.Password.type.length
+
+    def test_check_password(self):
+        user = UserAccounts('alice', 'secret', 'default.jpg')
+        assert user.check_password('secret') is True
+        assert user.check_password('wrong') is False
+        assert user.check_password('') is False
+
+    def test_set_password_replaces_hash(self):
+        user = UserAccounts('alice', 'secret', 'default.jpg')
+        user.set_password('new-secret')
+        assert user.check_password('new-secret') is True
+        assert user.check_password('secret') is False
+
+    @pytest.mark.parametrize('password', ['secret', ''])
+    def test_account_without_password_never_matches(self, password):
+        user = UserAccounts('alice', 'secret', 'default.jpg')
+        user.Password = None
+        assert user.check_password(password) is False
+
+    def test_legacy_md5_hash(self):
+        user = UserAccounts('alice', 'secret', 'default.jpg')
+        user.Password = md5('secret')
+
+        assert user.is_legacy_hash()
+        assert user.check_password('secret') is True
+        assert user.check_password('wrong') is False
+        assert user.check_password('') is False
 
 
 class TestMessage:

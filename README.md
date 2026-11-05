@@ -106,7 +106,7 @@ web: gunicorn --threads 8 -w 1 app:app
 ## 執行環境
 
 * Python 3.13.13
-* Flask 3.1 / Flask-SocketIO 5.6 / SQLAlchemy 2.0 / Pillow 12
+* Flask 3.1 / Flask-SocketIO 5.7 / SQLAlchemy 2.1 / Pillow 13
 
 ## Reference
 

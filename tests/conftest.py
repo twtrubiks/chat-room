@@ -10,7 +10,7 @@ from werkzeug.security import generate_password_hash
 # app.py 在 import 時就會用 SQLALCHEMY_DATABASE_URI 建立 engine，
 # 所以必須在 import app 之前把 DB 指到暫存檔，避免動到專案裡的 app.db。
 _DB_DIR = tempfile.mkdtemp(prefix='chat-room-test-')
-os.environ['DATABASE_URL'] = 'sqlite:///' + os.path.join(_DB_DIR, 'test.db')
+os.environ['CHAT_ROOM_DATABASE_URL'] = 'sqlite:///' + os.path.join(_DB_DIR, 'test.db')
 
 import app as chat_app  # noqa: E402
 from dbModel import UserAccounts, db  # noqa: E402
@@ -32,7 +32,9 @@ def flask_app(tmp_path, monkeypatch):
     monkeypatch.setattr(chat_app, 'MugShot_FOLDER', str(mugshot_dir))
 
     app = chat_app.app
-    app.config.update(TESTING=True)
+    monkeypatch.setitem(app.config, 'TESTING', True)
+    # 一般測試不帶 CSRF token；CSRF 本身在 test_csrf.py 測
+    monkeypatch.setitem(app.config, 'WTF_CSRF_ENABLED', False)
     with app.app_context():
         db.drop_all()
         db.create_all()

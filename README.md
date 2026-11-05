@@ -34,6 +34,8 @@ export FLASK_APP=app.py
 flask db upgrade
 ```
 
+預設使用 SQLite(`instance/app.db`)。要換資料庫請設定 `CHAT_ROOM_DATABASE_URL`,例如 `postgresql://user:password@localhost/db`(需另外安裝對應的 driver)。
+
 ## 啟動
 
 ```cmd
@@ -49,7 +51,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-測試會透過 `DATABASE_URL` 環境變數改用暫存的 SQLite,大頭照也寫到暫存資料夾,不會動到專案裡的 `app.db` 與 `static/mugshot`。
+測試會透過 `CHAT_ROOM_DATABASE_URL` 改用暫存的 SQLite,大頭照也寫到暫存資料夾,不會動到專案裡的 `app.db` 與 `static/mugshot`。
 
 ### 變異測試 (Mutation Testing)
 

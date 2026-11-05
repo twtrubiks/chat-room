@@ -71,9 +71,9 @@ class TestIndexContent:
         html = client.get('/index').get_data(as_text=True)
 
         assert rendered_messages(html) == [
-            ('alice.png', 'alice', 'hello from alice', '09:05'),
-            ('bob.png', 'bob', 'hi from bob', '13:45'),
-            ('alice.png', 'alice', 'bye', '23:59'),
+            ('alice.png', 'alice', 'hello from alice', '2024-01-01 09:05'),
+            ('bob.png', 'bob', 'hi from bob', '2024-01-01 13:45'),
+            ('alice.png', 'alice', 'bye', '2024-01-02 23:59'),
         ]
 
     def test_history_is_in_chronological_order(self, flask_app, auth_client):
@@ -94,7 +94,7 @@ class TestIndexContent:
 
         html = auth_client.get('/index').get_data(as_text=True)
 
-        assert rendered_messages(html) == [('default.jpg', 'alice', 'real message', '09:06')]
+        assert rendered_messages(html) == [('default.jpg', 'alice', 'real message', '2024-01-01 09:06')]
 
     def test_message_html_is_escaped(self, flask_app, auth_client):
         add_message(flask_app, 'alice', '<script>alert(1)</script>', datetime(2024, 1, 1, 9, 5))

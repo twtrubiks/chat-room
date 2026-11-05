@@ -64,7 +64,6 @@ class TestLogin:
         assert resp.headers['Location'] == '/index'
         with client.session_transaction() as sess:
             assert sess['_user_id'] == 'alice'
-            assert ('message', 'Logged in successfully') in sess['_flashes']
         # login_user(remember=True) 會發 remember cookie
         assert client.get_cookie('remember_token') is not None
 
@@ -168,7 +167,7 @@ class TestRegister:
 
     def test_registered_user_can_login_again(self, client, login):
         client.post('/register', data={'username': 'bob', 'password': 'pw123'})
-        client.get('/logout')
+        client.post('/logout')
 
         resp = login('bob', 'pw123')
 
@@ -237,13 +236,24 @@ class TestRegister:
 
 class TestLogout:
     def test_logout_clears_session(self, auth_client):
-        resp = auth_client.get('/logout')
+        resp = auth_client.post('/logout')
 
         assert resp.status_code == 302
-        assert resp.headers['Location'] == '/index'
+        # 直接回登入頁，不會再繞去首頁、跳出「請先登入」的提示
+        assert resp.headers['Location'] == '/login'
         with auth_client.session_transaction() as sess:
             assert '_user_id' not in sess
+            assert '_flashes' not in sess
         assert auth_client.get('/index').status_code == 302
+
+    def test_get_does_not_log_out(self, auth_client):
+        assert auth_client.get('/logout').status_code == 405
+        with auth_client.session_transaction() as sess:
+            assert sess['_user_id'] == 'alice'
+
+    def test_chat_page_has_logout_form(self, auth_client):
+        html = auth_client.get('/index').get_data(as_text=True)
+        assert '<form class="logout-form" action="/logout" method="post">' in html
 
 
 class TestCheckUserNameExist:

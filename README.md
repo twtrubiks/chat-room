@@ -51,7 +51,7 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-測試會透過 `CHAT_ROOM_DATABASE_URL` 改用暫存的 SQLite,大頭照也寫到暫存資料夾,不會動到專案裡的 `app.db` 與 `static/mugshot`。
+測試會透過 `CHAT_ROOM_DATABASE_URL` 改用暫存的 SQLite,大頭照也寫到暫存資料夾,不會動到 `instance/app.db` 與 `static/mugshot`。
 
 ### 變異測試 (Mutation Testing)
 

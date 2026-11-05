@@ -3,6 +3,8 @@ import os
 import re
 
 import pytest
+from werkzeug.datastructures import FileStorage
+from werkzeug.test import encode_multipart
 
 from dbModel import UserAccounts, db
 
@@ -91,3 +93,50 @@ def test_old_mugshot_file_already_gone(flask_app, auth_client, get_user, mugshot
 
     assert resp.status_code == 200
     assert get_user('alice').MugShot == resp.get_json()['filename']
+
+
+@pytest.mark.parametrize('size', [(1024, 1024), (1024, 1), (1, 1024)])
+def test_image_at_max_dimensions_is_accepted(auth_client, make_image, size):
+    resp = upload(auth_client, make_image(size=size))
+    assert resp.get_json()['status'] == 'success'
+
+
+@pytest.mark.parametrize('size', [(1025, 10), (10, 1025)])
+def test_oversized_image_is_rejected(auth_client, get_user, mugshot_dir, make_image, size):
+    resp = upload(auth_client, make_image(size=size))
+
+    assert resp.status_code == 400
+    assert resp.get_json() == {'status': 'error', 'message': 'image too large'}
+    assert get_user('alice').MugShot == 'default.jpg'
+    assert os.listdir(mugshot_dir) == []
+
+
+def multipart_body(total_size):
+    """產生整個 request body 剛好 total_size bytes 的 multipart 上傳。"""
+    def encode(payload):
+        image = FileStorage(stream=io.BytesIO(payload), filename='a.png', content_type='image/png')
+        return encode_multipart({'image': image}, boundary='test-boundary')
+
+    _, one_byte = encode(b'x')
+    boundary, body = encode(b'x' * (total_size - len(one_byte) + 1))
+    assert len(body) == total_size
+    return body, 'multipart/form-data; boundary=' + boundary
+
+
+# 上傳上限 2 MB（整個 request body）
+@pytest.mark.parametrize('total_size, too_large', [
+    (2 * 1024 * 1024, False),
+    (2 * 1024 * 1024 + 1, True),
+])
+def test_request_size_limit(auth_client, total_size, too_large):
+    body, content_type = multipart_body(total_size)
+
+    resp = auth_client.post('/croppic', data=body, content_type=content_type)
+
+    if too_large:
+        assert resp.status_code == 413
+        assert resp.get_json() == {'status': 'error', 'message': 'file too large'}
+    else:
+        # 沒超過上限就會進到圖片檢查（內容不是圖片，所以是 500）
+        assert resp.status_code == 500
+        assert resp.get_json()['message'] != 'file too large'
